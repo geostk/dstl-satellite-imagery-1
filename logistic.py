@@ -91,10 +91,8 @@ def mask_to_polygons(mask, epsilon=10., min_area=10.):
 
 
 def train(train_ids):
-    all_xs = np.array([0,0,0])
-    all_ys = None
 
-    for img_id in train_ids[0:2,]:
+    for img_id in train_ids:
         print('Operating on ' + str(img_id))
 
         cur_polygons = df[(df['ImageId'] == img_id) & (df['ClassType'] == POLY_TYPE)].iloc[0]['MultipolygonWKT']
@@ -114,19 +112,17 @@ def train(train_ids):
         xs = im_rgb.reshape(-1, 3).astype(np.float32)
         ys = train_mask.reshape(-1)
 
-        all_xs = np.vstack((all_xs, xs))
-        all_ys = np.append(all_ys, ys)
+        #pipeline = make_pipeline(StandardScaler(), SGDClassifier(loss='log'))
 
-    pipeline = make_pipeline(StandardScaler(), SGDClassifier(loss='log'))
+        print('training partial fit...')
+        # do not care about overfitting here
+        model = SGDClassifier(loss='log')
+        model.partial_fit(xs, ys, classes = (0, 1))
 
-    print('training...')
-    # do not care about overfitting here
-    pipeline.fit(xs, ys)
-
-    return(pipeline)
+    return(model)
 
 
-def predict(test_ids, pipeline):
+def predict(test_ids, model):
 
     d = []
 
@@ -142,7 +138,7 @@ def predict(test_ids, pipeline):
         x_scaler, y_scaler = get_scalers(im_size, x_max, y_min)
         xs = im_rgb.reshape(-1, 3).astype(np.float32)
         
-        pred_ys = pipeline.predict_proba(xs)[:, 1]
+        pred_ys = model.predict_proba(xs)[:, 1]
         pred_mask = pred_ys.reshape(im_size) # 3348 3403
         threshold = 0.3
         pred_binary_mask = pred_mask >= threshold
@@ -171,12 +167,11 @@ train_ids = df['ImageId'].unique()
 # Load grid sizes
 gs = pd.read_csv('input/grid_sizes.csv', names=['ImageId', 'Xmax', 'Ymin'], skiprows=1)
 test_ids = gs[~gs.isin(train_ids)].dropna()['ImageId']
-test_ids = '6170_0_1'
 
-pipeline = train(train_ids)
-predictions = predict(test_ids, pipeline)
+model = train(train_ids)
+predictions = predict(test_ids, model)
 
-#predictions.to_csv('output/temp_logistic_buildings.csv', index = False)
+predictions.to_csv('output/temp_logistic_buildings_all_train.csv', index = False)
 
 #submission = pd.read_csv('input/sample_submission.csv')
 
