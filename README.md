@@ -11,3 +11,6 @@ Python installation used is built using the Kaggle Docker installation described
 3. Run the generate_masks.py file from the top level directory
     * Top level is required due to Docker permissioning
     * `kpython generate_masks.py` 
+4. To Run Logistic Regression Classifier:
+    * `kpython logistic.py`
+    * Run R code in generate_solution_file.R
