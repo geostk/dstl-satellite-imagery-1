@@ -9,7 +9,7 @@
 #
 #  This script reads in the 3 band images and the polygons to create overlay images
 
-setwd('~/dev/competitions/kaggle/dstl-satellite-imagery/R')
+setwd('~/dev/dstl-satellite-imagery/R')
 
 library(raster)      # to read in from .tiff
 library(rgdal)       # to read in from wkt
@@ -58,6 +58,7 @@ filename_to_classType$V2 = as.numeric(as.character(filename_to_classType$V2))
 grid_sizes = fread('../input/grid_sizes.csv')
 setnames(grid_sizes, 'V1','ImageId')
 
+img_id <- '6100_2_2'
 for(img_id in unique(wkt$ImageId)) {
   
   print(img_id)
@@ -119,4 +120,16 @@ barplot(1:10,col=col0[1:10])
 legend('topleft', legend=c('1 building','2 small struct', '3 good roads',
                            '4 track/trial','5 VEG','6 ARG','7 Waterway','8 water',
                            '9 large vh','10 small vh'),pch=15,col=col0[1:10])
+
+
+
+
+
+
+img_id <- '6100_2_2'
+img_raster <- stack(paste0("../input/sixteen_band/", img_id, "_M.tif"))
+img_raster <- stack(paste0("../input/three_band//", img_id, ".tif"))
+plot(img_raster[[1]])
+plotRGB(img_raster, stretch = "lin")
+  
 dev.off()
