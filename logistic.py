@@ -15,6 +15,8 @@ from sklearn.feature_extraction.image import extract_patches_2d
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import cross_val_predict
 from sklearn.metrics import average_precision_score
+from datetime import datetime
+from pytz import timezone
 
 csv.field_size_limit(sys.maxsize);
 
@@ -85,6 +87,7 @@ def train(train_ids, class_id, polys, gs, patch_size):
     # First calculate standard scaler parameters
     scaler = StandardScaler()
     for img_id in train_ids:
+        print('Calcuating scaler for ' + str(img_id) + ' for class ' + str(class_id) + ' at ' + str(datetime.now(timezone('EST'))))
         im_rgb = tiff.imread('input/three_band/{}.tif'.format(img_id)).transpose([1, 2, 0])
         patches = extract_patches_2d(im_rgb, patch_size)
         patches = np.reshape(patches, (len(patches), -1))
@@ -95,7 +98,7 @@ def train(train_ids, class_id, polys, gs, patch_size):
     # Next build the logistic model
     model = SGDClassifier(loss='log')
     for img_id in train_ids:
-        print('Training on ' + str(img_id) + ' for class ' + str(class_id))
+        print('Training on ' + str(img_id) + ' for class ' + str(class_id) + ' at ' + str(datetime.now(timezone('EST'))))
 
         # Load grid size for current image polygon coordinates
         x_max, y_min = gs[gs['ImageId'] == img_id].iloc[0,1:].astype(float)
@@ -120,7 +123,8 @@ def train(train_ids, class_id, polys, gs, patch_size):
         # Load xs from image and ys from polygon mask
         #xs = im_rgb.reshape(-1, 3).astype(np.float32)
         xs = patches.astype(np.float32)
-        ys = train_mask[0:-1, 0:-1].reshape(-1) # Drop last row and column to account for grid size
+        edges_to_delete = (patch_size[1] - 1) / 2 # Delete 0 for patch_size 1, 1 for patch_size 3, 2 for patch_size 5, etc
+        ys = train_mask[edges_to_delete:-edges_to_delete, edges_to_delete:-edges_to_delete].reshape(-1) # Drop beginning & end rows and columns to account for patch size
         #ys = train_mask.reshape(-1)
 
         # Scale x values with trained scaler
@@ -142,7 +146,7 @@ def predict(test_ids, class_id, gs, scaler, model, patch_size):
     d = []
 
     for img_id in test_ids:
-        print('Predicting on ' + str(img_id) + ' for class ' + str(class_id))
+        print('Predicting on ' + str(img_id) + ' for class ' + str(class_id) + ' at ' + str(datetime.now(timezone('EST'))))
         
         # Load grid size for current image polygon coordinates
         x_max, y_min = gs[gs['ImageId'] == img_id].iloc[0,1:].astype(float)
@@ -162,9 +166,11 @@ def predict(test_ids, class_id, gs, scaler, model, patch_size):
         pred_ys = model.predict_proba(xs)[:, 1]
         #pred_mask = pred_ys.reshape(im_size) # 3348 3403
         
-        temp_mask = pred_ys.reshape(np.subtract(im_size, 1)) # To deal with patch indexing
-        pred_mask = np.zeros((temp_mask.shape[0]+1, temp_mask.shape[1]+1)) # Pad with additional row and column of zeros
-        pred_mask[:-1,:-1] = temp_mask # Pad with additional row and column of zeros
+        edges_to_change = (patch_size[1] - 1) / 2 # Add 0 for patch_size 1, 1 for patch_size 3, 2 for patch_size 5, etc
+
+        temp_mask = pred_ys.reshape(np.subtract(im_size, edges_to_change * 2)) # To deal with patch indexing
+        pred_mask = np.zeros((temp_mask.shape[0]+ (edges_to_change * 2), temp_mask.shape[1]+ (edges_to_change * 2))) # Pad with additional row and column of zeros
+        pred_mask[edges_to_change:-edges_to_change,edges_to_change:-edges_to_change] = temp_mask # Pad with additional row and column of zeros
 
         threshold = 0.3
         pred_binary_mask = pred_mask >= threshold
@@ -186,7 +192,7 @@ def predict(test_ids, class_id, gs, scaler, model, patch_size):
 
 
 class_ids = [1]
-patch_size = (2, 2)
+patch_size = (5, 5)
 #class_ids = (1,2,3,4,5,6,7,8,9,10)
 
 #train_polygons = None
